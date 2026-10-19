@@ -393,7 +393,10 @@ class CostOptimizationRecommendation:
 class CostTracker:
     """Tracks resource usage and costs."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        notifier: Optional[Callable[[str], None]] = None,
+    ) -> None:
         self._price_rules: dict[str, PriceRule] = {}
         self._usage_records: deque = deque(maxlen=1000000)
         self._budgets: dict[str, Budget] = {}
@@ -401,6 +404,12 @@ class CostTracker:
         self._recommendations: list[CostOptimizationRecommendation] = []
         self._running = False
         self._collection_task: Optional[asyncio.Task] = None
+        # Delivery channel for budget alerts. Defaults to an in-process log so
+        # `auto_alert` is observable even without a notification backend; inject
+        # a real dispatcher (email / webhook / queue) in production.
+        self._notifier: Callable[[str], None] = notifier or (
+            lambda msg: logger.info("[budget-alert] %s", msg)
+        )
 
     def add_price_rule(self, rule: PriceRule) -> None:
         self._price_rules[rule.rule_id] = rule
@@ -489,8 +498,10 @@ class CostTracker:
                     logger.warning(f"Budget {budget.name} at {utilization:.1%} utilization (threshold: {threshold:.0%})")
 
                     if budget.auto_alert:
-                        # Send alert (would integrate with notification system)
-                        pass
+                        self._notifier(
+                            f"Budget {budget.name} crossed {threshold:.0%} threshold "
+                            f"(utilization {utilization:.1%})"
+                        )
 
                     if budget.auto_disable and utilization >= 1.0:
                         logger.critical(f"Budget {budget.name} exceeded! Auto-disabling resources.")
