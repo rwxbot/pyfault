@@ -140,6 +140,9 @@ class ControlImplementation:
     control_id: str = ""
     framework: ComplianceFramework = ComplianceFramework.CUSTOM
 
+    # Tenant isolation — scope this implementation to a tenant.
+    tenant_id: str = ""
+
     # Status
     status: ControlStatus = ControlStatus.NOT_IMPLEMENTED
     implementation_details: str = ""
@@ -178,6 +181,7 @@ class ControlImplementation:
             "implementation_id": self.implementation_id,
             "control_id": self.control_id,
             "framework": self.framework.value,
+            "tenant_id": self.tenant_id,
             "status": self.status.value,
             "implementation_details": self.implementation_details,
             "owner": self.owner,
@@ -763,11 +767,13 @@ class ComplianceManager:
         owner: str,
         reviewer: str = "",
         details: str = "",
+        tenant_id: str = "",
     ) -> ControlImplementation:
         control = self.framework_registry.get_control(control_id)
         impl = ControlImplementation(
             control_id=control_id,
             framework=control.framework if control else ComplianceFramework.CUSTOM,
+            tenant_id=tenant_id,
             owner=owner,
             reviewer=reviewer,
             implementation_details=details,
@@ -980,11 +986,15 @@ class ComplianceDashboard:
         self.manager = manager
 
     def get_overview(self, tenant_id: Optional[str] = None) -> dict[str, Any]:
-        """Get compliance overview."""
+        """Get compliance overview.
+
+        When ``tenant_id`` is provided the overview is scoped to that
+        tenant's implementations only, so a caller cannot read another
+        tenant's control posture (cross-tenant data leakage / IDOR).
+        """
         all_impls = list(self.manager._implementations.values())
         if tenant_id:
-            # Filter by tenant (would need tenant context on implementations)
-            pass
+            all_impls = [i for i in all_impls if i.tenant_id == tenant_id]
 
         total = len(all_impls)
         by_status: dict[str, int] = defaultdict(int)
