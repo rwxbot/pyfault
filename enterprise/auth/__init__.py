@@ -353,7 +353,7 @@ class APIKey:
             return False
         return not (self.expires_at and utc_now() >= self.expires_at)
 
-    def to_dict(self, include_key: bool = False) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = {
             "key_id": self.key_id,
             "tenant_id": self.tenant_id,
@@ -369,11 +369,6 @@ class APIKey:
             "created_at": self.created_at.isoformat(),
             "revoked_at": self.revoked_at.isoformat() if self.revoked_at else None,
         }
-
-        if include_key:
-            # This would only be returned on creation
-            pass
-
         return data
 
 
