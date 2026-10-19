@@ -859,8 +859,13 @@ class APIDocGenerator:
 
         # Generate OpenAPI
         if DocFormat.OPENAPI_JSON in self.config.formats or DocFormat.OPENAPI_YAML in self.config.formats:
-            # Would need app instance
-            pass
+            # OpenAPI emission needs the live app/routes (the metadata scanner's
+            # registered routes), which this standalone doc generator does not
+            # hold. Surface the gap instead of silently writing nothing.
+            logger.warning(
+                "OPENAPI output requested but skipped: DocGenerator needs the "
+                "application instance (routes) to emit OpenAPI."
+            )
 
         logger.info(f"Documentation written to {out_dir}")
 
