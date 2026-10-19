@@ -2,7 +2,7 @@
 PyFault - A Python web framework inspired by NestJS
 """
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 __author__ = "PyFault Team"
 
 from pyfault.common.audit import AuditInterceptor, AuditModule
