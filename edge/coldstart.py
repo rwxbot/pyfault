@@ -530,11 +530,25 @@ class ColdStartOptimizer:
                 await self.scale_warm_pool(function_id, target)
 
     async def _cleanup_idle_instances(self) -> None:
-        """Remove idle warm instances beyond minimum."""
-        for _function_id, instances in self._warm_pool.items():
-            if len(instances) > self.config.min_warm_instances:
-                # In practice, would track last use time and evict oldest
-                pass
+        """Reclaim warm instances beyond the configured minimum.
+
+        The warm pool previously only ever grew — scale-up added instances
+        but nothing reclaimed them, so instance count (and the memory they
+        hold) climbed without bound under fluctuating load. We keep
+        ``min_warm_instances`` warm per function and discard the surplus.
+        """
+        min_warm = self.config.min_warm_instances
+        for function_id, instances in self._warm_pool.items():
+            surplus = len(instances) - min_warm
+            if surplus > 0:
+                for _ in range(surplus):
+                    instances.pop()
+                logger.debug(
+                    "Reclaimed %d idle warm instance(s) for %s (kept %d)",
+                    surplus,
+                    function_id,
+                    min_warm,
+                )
 
     def get_metrics(self, function_id: Optional[str] = None) -> dict[str, Any]:
         if function_id:
