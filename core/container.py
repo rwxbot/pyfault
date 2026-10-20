@@ -99,3 +99,12 @@ class Container:
     def has(self, token: type) -> bool:
         """Check if a provider is registered."""
         return token in self._providers
+
+    def registered_types(self) -> list[type]:
+        """Return all registered provider tokens (types).
+
+        Used by tooling (e.g. the OpenAPI generator) that needs to enumerate
+        every registered class — controllers in particular — without reaching
+        into the private ``_providers`` mapping.
+        """
+        return list(self._providers.keys())

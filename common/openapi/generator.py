@@ -3,6 +3,7 @@ OpenAPI Generator for PyFault framework - auto-generates from routes.
 """
 
 import inspect
+import logging
 from types import UnionType
 from typing import Any, Optional, Union
 
@@ -17,6 +18,8 @@ from pyfault.common.openapi.schema import (
     SecurityScheme,
 )
 from pyfault.core.scanner import MetadataKeys, MetadataScanner
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAPIGenerator:
@@ -49,14 +52,43 @@ class OpenAPIGenerator:
         return doc
 
     def _generate_from_scanner(self, doc: OpenAPISchema) -> None:
-        """Generate from metadata scanner."""
-        # This would scan all modules for controllers and routes
-        pass
+        """Generate from metadata scanner.
+
+        This branch is only reached when ``generate()`` is called without an
+        ``app_factory`` — the scanner has no standalone route registry to walk
+        in that case. Emit an explicit warning rather than silently returning a
+        document with zero paths.
+        """
+        logger.warning(
+            "OpenAPIGenerator.generate(): no app_factory provided; cannot "
+            "discover routes automatically. Use generate_from_module(module) "
+            "or pass an app_factory with a populated container. OpenAPI paths "
+            "will be empty."
+        )
 
     def _generate_from_controllers(self, doc: OpenAPISchema) -> None:
-        """Generate from registered controllers in container."""
-        # This would inspect the container for controllers
-        pass
+        """Generate paths from controllers registered in the app factory container."""
+        container = self.app_factory.container
+        registered = getattr(container, "registered_types", None)
+        if registered is None:
+            logger.warning(
+                "OpenAPIGenerator.generate(): app_factory.container exposes no "
+                "registered_types(); cannot enumerate controllers. OpenAPI paths "
+                "will be empty."
+            )
+            return
+        controller_types = [
+            token for token in registered()
+            if isinstance(token, type) and self.scanner.is_controller(token)
+        ]
+        if not controller_types:
+            logger.warning(
+                "OpenAPIGenerator.generate(): no controllers found in "
+                "app_factory.container; OpenAPI paths will be empty."
+            )
+            return
+        for controller_class in controller_types:
+            self._generate_from_controller(doc, controller_class)
 
     def generate_from_module(self, module_class: type, title: str = "PyFault API", version: str = "1.0.0") -> OpenAPISchema:
         """Generate OpenAPI document from a module class."""
